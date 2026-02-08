@@ -3,21 +3,43 @@
 ![Go](https://img.shields.io/badge/go-1.22+-00ADD8?logo=go)
 ![Security](https://img.shields.io/badge/Security-PII%20Redaction-red)
 ![Governance](https://img.shields.io/badge/Cost-FinOps%20Guardrails-green)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**Sanctum AI** este un strat de guvernanță (Governance Layer) care se interpune între infrastructura corporației și furnizorii de modele AI (LLMs).
+**Sanctum AI** is a high-performance Governance Layer designed to sit between corporate infrastructure and external LLM providers.
 
-Într-un mediu enterprise, accesul direct la API-urile publice (ex: GPT-4) prezintă riscuri majore: scurgeri de date personale (PII) și costuri necontrolate. Sanctum AI rezolvă aceste probleme printr-o arhitectură de tip **Smart Proxy** de înaltă performanță.
+In an enterprise environment, direct access to public APIs (e.g., GPT-4) introduces significant risks regarding data leakage and uncontrolled costs. Sanctum AI mitigates these risks via a **Smart Proxy** architecture that enforces security and budget policies in real-time without adding perceptible latency.
 
-## 🏗️ Arhitectură și Decizii Tehnice
+## 🏗️ Architecture & Design Decisions
 
 ### 1. Zero-Trust PII Masking
-Sistemul interceptează prompt-urile și identifică entități sensibile (CNP, Email, IBAN) folosind o combinație de Regex optimizat și NLP ușor (Named Entity Recognition).
-* **Strategie:** Datele sunt înlocuite cu token-uri sintetice (ex: `<PERSON_1>`) înainte de a părăsi perimetrul securizat.
-* **Re-hydration:** La primirea răspunsului de la LLM, token-urile sunt reînlocuite cu datele originale, asigurând o experiență transparentă pentru utilizator.
+The system intercepts prompts and identifies sensitive entities (SSN, Email, IBAN) using a hybrid approach of optimized Regex and lightweight NLP (Named Entity Recognition).
+* **Strategy:** Sensitive data is replaced with synthetic tokens (e.g., `<PERSON_1>`) before leaving the secure perimeter.
+* **Re-hydration:** Upon receiving the LLM response, tokens are swapped back to the original data, ensuring a seamless user experience while keeping the LLM provider "blind" to PII.
 
 ### 2. FinOps & Cost Guardrails
-Implementează rate-limiting semantic și bugete la nivel de departament folosind **Redis**.
-* *Exemplu:* "Echipa de Marketing are un buget de $500/zi. După atingerea a 80%, traficul este redus (throttled), iar la 100% este blocat."
+Sanctum implements semantic rate-limiting and departmental budgets using **Redis** (Token Bucket algorithm).
+* *Scenario:* "The Marketing Team has a $500/day budget. At 80% usage, traffic is throttled; at 100%, it is blocked."
 
-### 3. Model Agnostic Router
-Permite rutarea dinamică a cererilor: întrebările simple sunt direcționate către modele ieftine (ex: Llama 3 hostat local), iar cele complexe către modele SOTA (State of the Art), optimizând costurile cu până la 60%.
+### 3. Model Agnostic Routing
+Requests are dynamically routed based on complexity. Simple queries are offloaded to lower-cost models (e.g., local Llama 3), while complex reasoning tasks are sent to SOTA models, optimizing TCO (Total Cost of Ownership).
+
+## 🛠️ Tech Stack
+
+* **Core:** Go (Golang)
+* **State Store:** Redis (for Rate Limiting & Token Mapping)
+* **Observability:** OpenTelemetry (Traces) + Prometheus (Metrics)
+* **Deployment:** Docker / Kubernetes
+
+## 🚀 Quick Start
+
+```bash
+# Clone the repository
+git clone [https://github.com/yourusername/sanctum-ai.git](https://github.com/yourusername/sanctum-ai.git)
+
+# Start services (Redis + Sanctum)
+docker-compose up -d
+
+# Test the proxy (PII Redaction)
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -d '{"prompt": "Contact John Doe at john@example.com"}'
+# Response prompt received by LLM: "Contact <PERSON_1> at <EMAIL_1>"
